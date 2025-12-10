@@ -1,0 +1,68 @@
+# Vesper Project - Cursor Rules
+
+## General Development Principles
+
+1. **Plan Before Building**: Always provide a clear plan of execution before implementing new features or making significant changes. Break down the work into steps and get approval if needed.
+
+2. **Minimal Changes**: Make as minimum changes as possible when delivering a feature. Only modify what's necessary to implement the requested functionality.
+
+3. **Incremental Development**: Build features incrementally, one screen/component at a time. Test each piece before moving to the next.
+
+4. **Code Quality**: 
+   - Write clean, readable, and maintainable code
+   - Follow consistent naming conventions
+   - Add comments for complex logic
+   - Keep components focused and single-purpose
+
+5. **Design System Adherence**:
+   - Strictly follow the color palette: #ddd5cd (beige), #000000 (black), #b1c965 (muted lime green), #731424 (deep red)
+   - Maintain the editorial, high-contrast aesthetic
+   - Prefer dark mode as default
+   - Use line art/watercolor style illustrations
+
+6. **User Experience**:
+   - Prioritize voice-first interactions
+   - Ensure safety features (safeword, STOP button) are always accessible
+   - Maintain smooth navigation between screens
+   - Respect freemium limitations clearly
+
+7. **State Management**:
+   - Keep user preferences, quiz results, and session data well-organized
+   - Persist critical user data appropriately
+   - Handle premium/free user states correctly
+
+8. **Error Handling**:
+   - Handle edge cases gracefully
+   - Provide clear error messages
+   - Ensure the app doesn't crash on unexpected inputs
+
+9. **Performance**:
+   - Optimize for smooth audio playback
+   - Minimize unnecessary re-renders
+   - Consider loading states for async operations
+
+10. **Privacy & Security**:
+    - Handle sensitive user data with care
+    - Ensure authentication flows are secure
+    - Respect user privacy settings
+
+## Communication Style
+
+- When proposing changes, explain the "why" not just the "what"
+- If something is unclear, ask for clarification rather than making assumptions
+- Provide updates on progress, especially for complex features
+- Flag potential issues or trade-offs early
+
+## File Organization
+
+- Keep related components together
+- Use clear, descriptive file and folder names
+- Separate concerns: UI components, business logic, data models, utilities
+
+## Testing Approach
+
+- Test each feature as it's built
+- Verify freemium logic works correctly
+- Ensure navigation flows work end-to-end
+- Test on different screen sizes if applicable
+
