@@ -15,61 +15,37 @@ export default function IdentityPage() {
   const handleComplete = async () => {
     if (!username.trim() || !pronouns) return;
 
-    try {
-      // Verify user is authenticated before proceeding
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        router.push('/auth');
-        return;
-      }
+    // Update local store first
+    setUserPreferences({
+      ...userPreferences,
+      username: username.trim(),
+      pronouns: pronouns as 'She/Her' | 'He/Him' | 'They/Them',
+    });
 
-      // Update store
-      setUserPreferences({
-        ...userPreferences,
-        username: username.trim(),
-        pronouns: pronouns as 'She/Her' | 'He/Him' | 'They/Them',
-      });
-
-      // Save to Supabase
+    // Try to save to Supabase in the background (don't block navigation)
+    const saveToSupabase = async () => {
       try {
-        // First try to update existing record
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            username: username.trim(),
-            pronouns: pronouns as 'She/Her' | 'He/Him' | 'They/Them',
-          })
-          .eq('id', user.id);
-
-        // If update fails (no record exists), insert new record
-        if (updateError) {
-          const { error: insertError } = await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Try upsert
+          await supabase
             .from('users')
-            .insert({
+            .upsert({
               id: user.id,
               email: user.email,
               username: username.trim(),
               pronouns: pronouns as 'She/Her' | 'He/Him' | 'They/Them',
-            });
-
-          if (insertError) {
-            // Don't block navigation - continue even if save fails
-          }
+            }, { onConflict: 'id' });
         }
-      } catch (error) {
-        // Don't block navigation - continue even if save fails
+      } catch (e) {
+        // Ignore errors - data is saved locally
       }
+    };
+    
+    saveToSupabase(); // Fire and forget
 
-      // Ensure session is fresh before navigation
-      await supabase.auth.refreshSession();
-      
-      // Use hard navigation to ensure middleware runs with fresh cookies
-      window.location.href = '/home';
-    } catch (error) {
-      // Fallback: try to navigate anyway
-      window.location.href = '/home';
-    }
+    // Navigate immediately - don't wait for Supabase
+    router.push('/home');
   };
 
   return (

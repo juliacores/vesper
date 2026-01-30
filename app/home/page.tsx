@@ -43,26 +43,35 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check authentication on mount
-    const checkAuth = async () => {
-      // Try multiple methods to get the session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Check authentication on mount with retry
+    const checkAuth = async (retryCount = 0) => {
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-        // Try getting user directly
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (!user) {
-          router.push('/auth');
-          return;
-        } else {
-          // Try to refresh the session
-          await supabase.auth.refreshSession();
-        }
+      if (session) {
+        setLoading(false);
+        return;
       }
+
+      // No session, try getting user
+      const { data: { user } } = await supabase.auth.getUser();
       
-      setLoading(false);
+      if (user) {
+        // User exists but no session - try refresh
+        await supabase.auth.refreshSession();
+        setLoading(false);
+        return;
+      }
+
+      // No user found - retry once after a short delay (session might be initializing)
+      if (retryCount < 2) {
+        setTimeout(() => checkAuth(retryCount + 1), 500);
+        return;
+      }
+
+      // Still no user after retries - redirect to auth
+      router.push('/auth');
     };
+    
     checkAuth();
   }, [router]);
 

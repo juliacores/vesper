@@ -35,26 +35,23 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow onboarding pages and root to pass through
-  const publicPaths = ['/onboarding', '/auth'];
-  const isPublicPath = publicPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  ) || request.nextUrl.pathname === '/';
+  const pathname = request.nextUrl.pathname;
 
-  // Protect routes that require authentication
-  const protectedPaths = ['/home', '/stories', '/audios', '/voice', '/profile', '/sessions'];
-  const isProtectedPath = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  // Allow onboarding pages, auth pages, and root to pass through WITHOUT auth check
+  const publicPaths = ['/onboarding', '/auth', '/'];
+  const isPublicPath = publicPaths.some((path) => 
+    pathname === path || pathname.startsWith(path + '/')
+  ) || pathname === '/';
 
-  // Redirect to auth if accessing protected route without auth
-  if (isProtectedPath && !user) {
-    return NextResponse.redirect(new URL('/auth', request.url));
+  // If it's a public path, just let it through
+  if (isPublicPath) {
+    return response;
   }
 
-  // Redirect authenticated users away from main auth page (but allow callback/confirm and onboarding)
-  if (request.nextUrl.pathname === '/auth' && user && !request.nextUrl.search) {
-    return NextResponse.redirect(new URL('/home', request.url));
+  // For protected paths, require authentication
+  if (!user) {
+    console.log(`Middleware: No user for ${pathname}, redirecting to /auth`);
+    return NextResponse.redirect(new URL('/auth', request.url));
   }
 
   return response;
