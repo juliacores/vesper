@@ -39,8 +39,10 @@ export default function AuthForm() {
 
         if (data.user) {
           setMessage('Account created! Redirecting...');
-          // Redirect to onboarding
-          setTimeout(() => router.push('/onboarding/quiz'), 500);
+          // Redirect to onboarding with hard navigation
+          setTimeout(() => {
+            window.location.href = '/onboarding/quiz';
+          }, 500);
         }
       } else {
         // Sign in with email/password
@@ -53,8 +55,10 @@ export default function AuthForm() {
 
         if (data.user) {
           setMessage('Signed in! Redirecting...');
-          // Redirect to home or onboarding based on user state
-          setTimeout(() => router.push('/home'), 500);
+          // Redirect to home with hard navigation
+          setTimeout(() => {
+            window.location.href = '/home';
+          }, 500);
         }
       }
     } catch (error: any) {
