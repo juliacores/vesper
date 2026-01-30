@@ -52,8 +52,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth', request.url));
   }
 
-  // Redirect authenticated users away from auth pages (but allow onboarding and root)
-  if (request.nextUrl.pathname === '/auth' && user) {
+  // Redirect authenticated users away from main auth page (but allow callback/confirm and onboarding)
+  if (request.nextUrl.pathname === '/auth' && user && !request.nextUrl.search) {
     return NextResponse.redirect(new URL('/home', request.url));
   }
 

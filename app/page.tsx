@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
 import ValuePropSlide from '@/components/onboarding/ValuePropSlide';
 import { AnimatePresence } from 'framer-motion';
 
@@ -27,21 +26,6 @@ const valueProps = [
 export default function Home() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  useEffect(() => {
-    // Check if user is already authenticated
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // User is authenticated, redirect to home
-        router.push('/home');
-      } else {
-        setCheckingAuth(false);
-      }
-    };
-    checkAuth();
-  }, [router]);
 
   const handleNext = () => {
     if (currentSlide < valueProps.length - 1) {
@@ -50,14 +34,6 @@ export default function Home() {
       router.push('/auth');
     }
   };
-
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen bg-void flex items-center justify-center">
-        <p className="text-paper/60">Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-void">
