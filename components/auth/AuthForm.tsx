@@ -1,13 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 
 export default function AuthForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Check for error in URL params (from callback)
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error) {
+      setMessage(`Auth error: ${decodeURIComponent(error)}`);
+    }
+  }, [searchParams]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,13 +1,13 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const next = requestUrl.searchParams.get('next') ?? '/onboarding/quiz';
 
   if (code) {
-    const cookieStore = await cookies();
+    const response = NextResponse.redirect(new URL(next, requestUrl.origin));
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,12 +15,12 @@ export async function GET(request: NextRequest) {
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return request.cookies.getAll();
           },
           setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -29,12 +29,14 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (error) {
-      // If there's an error, redirect to auth with error message
-      return NextResponse.redirect(new URL('/auth?error=auth_callback_error', requestUrl.origin));
+      console.error('Auth callback error:', error.message);
+      return NextResponse.redirect(new URL(`/auth?error=${encodeURIComponent(error.message)}`, requestUrl.origin));
     }
+
+    return response;
   }
 
-  // Redirect to onboarding quiz
-  return NextResponse.redirect(new URL('/onboarding/quiz', requestUrl.origin));
+  // No code provided, redirect to auth
+  return NextResponse.redirect(new URL('/auth', requestUrl.origin));
 }
 
