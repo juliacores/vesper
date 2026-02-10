@@ -116,6 +116,13 @@ export default function VoiceChatScreen({ persona, vibe }: VoiceChatScreenProps)
       pc.ontrack = (event) => {
         if (audioRef.current) {
           audioRef.current.srcObject = event.streams[0];
+          audioRef.current.muted = false;
+          // Ensure playback starts even with autoplay policies
+          audioRef.current
+            .play()
+            .catch(() => {
+              // Ignore autoplay errors; user action (mute button / STOP) will retrigger
+            });
         }
       };
 
@@ -130,6 +137,10 @@ export default function VoiceChatScreen({ persona, vibe }: VoiceChatScreenProps)
 
       dc.onopen = () => {
         setStatus('connected');
+        // Seed transcript so it always gets saved and shows something in history
+        setTranscript((prev) =>
+          prev.length === 0 ? [`${persona}: Connected to you. Breathe with me.`] : prev
+        );
 
         // Start breathing animation
         animate(scale, [1, 1.2, 1], {
@@ -269,15 +280,14 @@ export default function VoiceChatScreen({ persona, vibe }: VoiceChatScreenProps)
     startSession();
 
     return () => {
+      // Save transcript on unmount as a fallback, e.g. if user closes tab
+      if (sessionId && transcript.length > 0) {
+        saveTranscript(sessionId, transcript);
+      }
       cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Update handleStop when transcript changes
-  useEffect(() => {
-    // Keep handleStop reference fresh for the timer
-  }, [transcript, sessionId]);
+  }, [sessionId, transcript, saveTranscript, cleanup]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
