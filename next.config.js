@@ -32,7 +32,9 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            // Allow microphone access for this origin so getUserMedia can work
+            // for the voice chat feature.
+            value: 'camera=(), microphone=(self), geolocation=()',
           },
         ],
       },
