@@ -12,9 +12,9 @@ type Tab = {
 };
 
 const tabs: Tab[] = [
+  { name: 'Home', href: '/home', icon: '✨', isHome: true },
   { name: 'Stories', href: '/stories', icon: '📖' },
   { name: 'Audios', href: '/audios', icon: '🎧' },
-  { name: 'Home', href: '/home', icon: '✨', isHome: true },
   { name: 'Voice', href: '/voice', icon: '🎤' },
   { name: 'Profile', href: '/profile', icon: '👤' },
 ];

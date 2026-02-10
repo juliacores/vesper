@@ -1,12 +1,14 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import AudioPlayerScreen from '@/components/sessions/AudioPlayerScreen';
 import { useAppStore } from '@/stores/useAppStore';
 import { supabase } from '@/lib/supabase/client';
 
-export default function AudioSessionPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function AudioSessionPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { selectedPersona, currentVibe } = useAppStore();
   const [sessionData, setSessionData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -16,10 +18,10 @@ export default function AudioSessionPage({ params }: { params: Promise<{ id: str
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('sessions')
             .select('*')
-            .eq('id', resolvedParams.id)
+            .eq('id', id)
             .eq('user_id', user.id)
             .single();
           
@@ -34,7 +36,7 @@ export default function AudioSessionPage({ params }: { params: Promise<{ id: str
       }
     };
     fetchSession();
-  }, [resolvedParams.id]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -46,12 +48,12 @@ export default function AudioSessionPage({ params }: { params: Promise<{ id: str
 
   return (
     <AudioPlayerScreen
-      sessionId={resolvedParams.id}
+      sessionId={id}
       audioUrl={sessionData?.audio_url}
+      storyText={sessionData?.transcript}
       title={sessionData?.title || `Audio Session with ${selectedPersona || 'Partner'}`}
       persona={sessionData?.persona || selectedPersona || undefined}
       vibe={sessionData?.vibe || currentVibe || undefined}
     />
   );
 }
-

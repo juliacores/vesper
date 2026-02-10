@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createApiClient } from '@/lib/supabase/api';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -8,11 +8,16 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const supabase = await createClient();
+    // Verify authentication using token from Authorization header
+    const { supabase, token } = createApiClient(request);
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - no token' }, { status: 401 });
+    }
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getUser(token);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -64,62 +69,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate TTS audio using ElevenLabs
-    let audioUrl: string | null = null;
-    try {
-      const ttsResponse = await fetch(
-        `${request.nextUrl.origin}/api/elevenlabs/tts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: storyText.substring(0, 5000), // Limit text length for TTS
-          }),
-        }
-      );
-
-      if (ttsResponse.ok) {
-        const ttsData = await ttsResponse.json();
-        
-        // Save audio to Supabase Storage
-        if (ttsData.audio && session?.id) {
-          const audioBuffer = Buffer.from(ttsData.audio, 'base64');
-          const fileName = `${user.id}/${session.id}.mp3`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('audio-sessions')
-            .upload(fileName, audioBuffer, {
-              contentType: 'audio/mpeg',
-              upsert: true,
-            });
-
-          if (!uploadError && uploadData) {
-            // Get public URL
-            const { data: urlData } = supabase.storage
-              .from('audio-sessions')
-              .getPublicUrl(fileName);
-            
-            audioUrl = urlData.publicUrl;
-
-            // Update session with audio URL
-            await supabase
-              .from('sessions')
-              .update({ audio_url: audioUrl })
-              .eq('id', session.id);
-          }
-        }
-      }
-    } catch (ttsError) {
-      // TTS generation failed, but continue with story text
-    }
-
+    // Story mode: return text only (no audio generation)
     return NextResponse.json({
       success: true,
       storyText,
       sessionId: session?.id,
-      audioUrl,
     });
   } catch (error: any) {
     return NextResponse.json(

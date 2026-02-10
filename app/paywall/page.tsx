@@ -23,8 +23,7 @@ export default function PaywallPage() {
   };
 
   const handleSkip = () => {
-    setIsPremium(false);
-    router.back();
+    router.push('/home');
   };
 
   const getMessage = () => {
@@ -51,7 +50,7 @@ export default function PaywallPage() {
             </motion.div>
 
             <h1 className="font-serif text-4xl text-paper mb-2">
-              Velvet Pro
+              Vesper Pro
             </h1>
 
             <p className="text-paper/70 text-lg mb-8">
@@ -85,7 +84,7 @@ export default function PaywallPage() {
             onClick={handleSubscribe}
             className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
           >
-            Subscribe to Velvet Pro
+            Subscribe to Vesper Pro
           </motion.button>
 
           <motion.button

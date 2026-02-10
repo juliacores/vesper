@@ -51,7 +51,7 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
               <div className="text-center">
                 <div className="text-6xl mb-4">✨</div>
                 <h2 className="font-serif text-3xl text-paper mb-2">
-                  Velvet Pro
+                  Vesper Pro
                 </h2>
                 <p className="text-paper/70">{getMessage()}</p>
               </div>
@@ -82,7 +82,7 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
                 onClick={handleSubscribe}
                 className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
               >
-                Subscribe to Velvet Pro
+                Subscribe to Vesper Pro
               </motion.button>
 
               <motion.button

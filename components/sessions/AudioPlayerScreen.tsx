@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/stores/useAppStore';
-import { Howl } from 'howler';
 
 interface AudioPlayerScreenProps {
   sessionId?: string;
   audioUrl?: string;
+  storyText?: string;
   title?: string;
   persona?: string;
   vibe?: string;
@@ -17,33 +17,31 @@ interface AudioPlayerScreenProps {
 export default function AudioPlayerScreen({
   sessionId,
   audioUrl,
+  storyText,
   title = 'Untitled Session',
   persona,
   vibe,
 }: AudioPlayerScreenProps) {
   const router = useRouter();
-  const { isPremium, freeGenerationsUsed, incrementFreeGenerations } = useAppStore();
+  const { isPremium } = useAppStore();
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isStopped, setIsStopped] = useState(false);
-  const soundRef = useRef<Howl | null>(null);
+  const soundRef = useRef<any>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize audio and freemium timer
+  // Determine display mode: text reader if no audio, audio player if audio exists
+  const hasAudio = !!audioUrl;
+  const hasText = !!storyText;
+
+  // Initialize audio
   useEffect(() => {
-    if (!isPremium && freeGenerationsUsed >= 1) {
-      router.push('/paywall?reason=generation_limit');
-      return;
-    }
-
     if (!isPremium) {
-      setTimeRemaining(120); // 2 minutes
-      incrementFreeGenerations();
+      setTimeRemaining(120); // 2 minutes for free users
     }
 
-    // Initialize Howl with audio URL
     if (audioUrl) {
       const { Howl } = require('howler');
       soundRef.current = new Howl({
@@ -69,18 +67,13 @@ export default function AudioPlayerScreen({
         clearInterval(intervalRef.current);
       }
     };
-  }, [audioUrl, isPremium, freeGenerationsUsed, router, incrementFreeGenerations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioUrl]);
 
-  // Update progress and handle freemium timer
+  // Freemium timer
   useEffect(() => {
     if (isPlaying) {
       intervalRef.current = setInterval(() => {
-        // Update progress
-        // const seek = soundRef.current?.seek() || 0;
-        // setProgress(seek);
-        // setDuration(soundRef.current?.duration() || 0);
-
-        // Update freemium timer
         if (!isPremium && timeRemaining !== null) {
           setTimeRemaining((prev) => {
             if (prev === null) return null;
@@ -91,7 +84,7 @@ export default function AudioPlayerScreen({
             return prev - 1;
           });
         }
-      }, 100);
+      }, 1000);
     }
 
     return () => {
@@ -99,11 +92,11 @@ export default function AudioPlayerScreen({
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, timeRemaining, isPremium]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, isPremium]);
 
   const handlePlayPause = () => {
     if (!soundRef.current) return;
-
     if (isPlaying) {
       soundRef.current.pause();
     } else {
@@ -124,7 +117,6 @@ export default function AudioPlayerScreen({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = parseFloat(e.target.value);
     setProgress(newProgress);
-    // soundRef.current?.seek(newProgress);
   };
 
   const formatTime = (seconds: number) => {
@@ -133,6 +125,7 @@ export default function AudioPlayerScreen({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Session complete screen
   if (isStopped) {
     return (
       <div className="min-h-screen bg-void flex items-center justify-center p-6">
@@ -157,12 +150,78 @@ export default function AudioPlayerScreen({
     );
   }
 
+  // TEXT READER MODE — when we have text but no audio
+  if (!hasAudio && hasText) {
+    return (
+      <div className="min-h-screen bg-void flex flex-col">
+        {/* Header */}
+        <div className="p-6 pb-2">
+          <button
+            onClick={() => router.push('/home')}
+            className="text-paper/60 mb-4"
+          >
+            ← Back
+          </button>
+          <h1 className="font-serif text-2xl text-paper mb-1">{title}</h1>
+          {persona && vibe && (
+            <p className="text-paper/60 text-sm">
+              {persona} • {vibe}
+            </p>
+          )}
+        </div>
+
+        {/* Story Text */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="max-w-2xl mx-auto">
+            {storyText.split('\n').map((paragraph, i) => (
+              paragraph.trim() ? (
+                <p key={i} className="text-paper/90 leading-relaxed mb-4 font-sans text-base">
+                  {paragraph}
+                </p>
+              ) : <br key={i} />
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="p-6 pt-2">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => router.push('/home')}
+            className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
+          >
+            Done
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  // NO CONTENT — neither audio nor text
+  if (!hasAudio && !hasText) {
+    return (
+      <div className="min-h-screen bg-void flex flex-col items-center justify-center p-6 text-center">
+        <span className="text-4xl mb-4">📝</span>
+        <h2 className="font-serif text-2xl text-paper mb-2">No content available</h2>
+        <p className="text-paper/60 mb-6">This session doesn&apos;t have any content yet.</p>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push('/home')}
+          className="px-8 py-3 bg-lime text-void font-semibold rounded-lg"
+        >
+          Return Home
+        </motion.button>
+      </div>
+    );
+  }
+
+  // AUDIO PLAYER MODE — when we have audio
   return (
     <div className="min-h-screen bg-void flex flex-col p-6">
       {/* Header */}
       <div className="mb-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/home')}
           className="text-paper/60 mb-4"
         >
           ← Back
@@ -213,10 +272,8 @@ export default function AudioPlayerScreen({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => {
-            // Seek backward 10 seconds
             const newProgress = Math.max(0, progress - 10);
             setProgress(newProgress);
-            // soundRef.current?.seek(newProgress);
           }}
           className="text-paper/60 text-2xl"
         >
@@ -234,10 +291,8 @@ export default function AudioPlayerScreen({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => {
-            // Seek forward 10 seconds
             const newProgress = Math.min(duration, progress + 10);
             setProgress(newProgress);
-            // soundRef.current?.seek(newProgress);
           }}
           className="text-paper/60 text-2xl"
         >
@@ -258,4 +313,3 @@ export default function AudioPlayerScreen({
     </div>
   );
 }
-

@@ -1,38 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AudioPlayerScreen from '@/components/sessions/AudioPlayerScreen';
 import { useAppStore } from '@/stores/useAppStore';
+import { supabase } from '@/lib/supabase/client';
 
 export default function NewAudioSessionPage() {
   const router = useRouter();
-  const { selectedPersona, currentVibe, userPreferences, isPremium, freeGenerationsUsed } = useAppStore();
+  const { selectedPersona, currentVibe, userPreferences, isPremium, freeGenerationsUsed, incrementFreeGenerations } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasStarted = useRef(false);
 
   useEffect(() => {
+    // Prevent double-fire from React Strict Mode
+    if (hasStarted.current) return;
+
     if (!selectedPersona || !currentVibe) {
       router.push('/home');
       return;
     }
 
-    // Check freemium limits
-    if (!isPremium && freeGenerationsUsed >= 1) {
+    // Check freemium limits (allow 3 free generations for testing)
+    if (!isPremium && freeGenerationsUsed >= 3) {
       router.push('/paywall?reason=generation_limit');
       return;
     }
+
+    hasStarted.current = true;
 
     // Generate audio
     const generateAudio = async () => {
       try {
         setLoading(true);
+
+        // Get access token for API auth
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+
         const response = await fetch('/api/generate/audio', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
           },
           body: JSON.stringify({
             persona: selectedPersona,
@@ -49,6 +62,11 @@ export default function NewAudioSessionPage() {
         const data = await response.json();
         setSessionId(data.sessionId);
         setAudioUrl(data.audioUrl || null);
+
+        // Increment free generation counter after successful generation
+        if (!isPremium) {
+          incrementFreeGenerations();
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to generate audio');
       } finally {
@@ -57,7 +75,8 @@ export default function NewAudioSessionPage() {
     };
 
     generateAudio();
-  }, [selectedPersona, currentVibe, userPreferences, isPremium, freeGenerationsUsed, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -93,6 +112,7 @@ export default function NewAudioSessionPage() {
   return (
     <AudioPlayerScreen
       sessionId={sessionId || undefined}
+      audioUrl={audioUrl || undefined}
       title={`Audio Session with ${selectedPersona}`}
       persona={selectedPersona}
       vibe={currentVibe}
