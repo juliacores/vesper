@@ -38,7 +38,7 @@ const personas = [
 
 export default function HomePage() {
   const router = useRouter();
-  const { currentVibe, selectedPersona, setCurrentVibe, setSelectedPersona, userPreferences } =
+  const { currentVibe, selectedPersona, setCurrentVibe, setSelectedPersona, userPreferences, setIsPremium } =
     useAppStore();
   const [loading, setLoading] = useState(true);
 
@@ -49,10 +49,21 @@ export default function HomePage() {
         window.location.href = '/auth';
         return;
       }
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_premium')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userData) {
+        setIsPremium(userData.is_premium ?? false);
+      }
+
       setLoading(false);
     };
     checkAuth();
-  }, []);
+  }, [setIsPremium]);
 
   if (loading) {
     return (

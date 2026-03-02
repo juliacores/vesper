@@ -98,6 +98,10 @@ export default function VoiceChatScreen({ persona, vibe }: VoiceChatScreenProps)
 
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.json();
+        if (tokenResponse.status === 402 || errorData.code === 'limit_reached') {
+          router.push('/paywall?reason=generation_limit');
+          return;
+        }
         throw new Error(errorData.error || 'Failed to create session');
       }
 

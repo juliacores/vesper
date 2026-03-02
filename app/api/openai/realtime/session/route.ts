@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiClient } from '@/lib/supabase/api';
+import { checkAndIncrementFreemium } from '@/lib/freemium';
+import { validateGenerationInput, fetchWithTimeout } from '@/lib/validation';
+import { rateLimit } from '@/lib/rateLimit';
 
 // Persona system prompts for voice chat
 const personaPrompts: Record<string, string> = {
@@ -25,38 +28,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { persona, vibe, userPreferences } = body;
+    const rateLimited = rateLimit(request, user.id, { maxRequests: 3, windowMs: 60_000 });
+    if (rateLimited) return rateLimited;
 
-    if (!persona || !vibe) {
-      return NextResponse.json({ error: 'Persona and vibe are required' }, { status: 400 });
+    const freemium = await checkAndIncrementFreemium(supabase, user.id);
+    if (!freemium.allowed) {
+      return NextResponse.json(
+        { error: freemium.error, code: 'limit_reached' },
+        { status: 402 }
+      );
     }
+
+    const body = await request.json();
+    const input = validateGenerationInput(body);
+    if (!input.valid) {
+      return NextResponse.json({ error: input.error }, { status: 400 });
+    }
+    const { persona, vibe, userPreferences } = input;
 
     // Build the system instructions for this session
     const instructions = buildVoiceInstructions(persona, vibe, userPreferences);
 
-    // Create ephemeral token from OpenAI Realtime API
-    const openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+    const openaiResponse = await fetchWithTimeout(
+      'https://api.openai.com/v1/realtime/sessions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-realtime-preview-2024-12-17',
+          voice: getVoiceForPersona(persona),
+          instructions,
+          input_audio_transcription: {
+            model: 'whisper-1',
+          },
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 500,
+          },
+        }),
       },
-      body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-12-17',
-        voice: getVoiceForPersona(persona),
-        instructions,
-        input_audio_transcription: {
-          model: 'whisper-1',
-        },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500,
-        },
-      }),
-    });
+      15_000
+    );
 
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({}));

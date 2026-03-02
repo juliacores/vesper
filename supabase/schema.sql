@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   username TEXT,
   pronouns TEXT CHECK (pronouns IN ('She/Her', 'He/Him', 'They/Them')),
   is_premium BOOLEAN DEFAULT FALSE,
+  free_generations_used INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );

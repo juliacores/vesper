@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import * as Sentry from '@sentry/nextjs';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -27,10 +28,7 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to error reporting service in production
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: Add error reporting service (Sentry, etc.)
-    }
+    Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   resetError = () => {

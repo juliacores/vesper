@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -32,8 +34,6 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            // Allow microphone access for this origin so getUserMedia can work
-            // for the voice chat feature.
             value: 'camera=(), microphone=(self), geolocation=()',
           },
         ],
@@ -42,5 +42,13 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+}, {
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
 

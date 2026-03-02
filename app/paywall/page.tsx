@@ -3,35 +3,24 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAppStore } from '@/stores/useAppStore';
+import { useCheckout } from '@/lib/useCheckout';
 
 export default function PaywallPage() {
   const router = useRouter();
-  const [reason, setReason] = useState<'time_limit' | 'generation_limit' | null>(null);
-  const { setIsPremium } = useAppStore();
+  const [reason, setReason] = useState<string | null>(null);
+  const { startCheckout, loading, error } = useCheckout();
 
   useEffect(() => {
-    // Get reason from URL on client side
     const params = new URLSearchParams(window.location.search);
-    setReason(params.get('reason') as 'time_limit' | 'generation_limit' | null);
+    setReason(params.get('reason'));
   }, []);
-
-  const handleSubscribe = () => {
-    // TODO: Implement Stripe subscription flow
-    setIsPremium(true);
-    router.push('/home');
-  };
-
-  const handleSkip = () => {
-    router.push('/home');
-  };
 
   const getMessage = () => {
     if (reason === 'time_limit') {
-      return "You've reached the climax of the free trial. Subscribe to finish the scene.";
+      return "You\u2019ve reached the climax of the free trial. Subscribe to finish the scene.";
     }
     if (reason === 'generation_limit') {
-      return "You've used your free generation. Subscribe for unlimited access.";
+      return "You\u2019ve used your free generations. Subscribe for unlimited access.";
     }
     return 'Unlock unlimited stories, audios, and voice chats.';
   };
@@ -75,21 +64,30 @@ export default function PaywallPage() {
                 <span className="text-paper">Priority support</span>
               </div>
             </div>
+
+            {error && (
+              <p className="text-blood text-sm">{error}</p>
+            )}
+
+            <p className="text-paper/40 text-xs">
+              Have a promo code? You can apply it at checkout.
+            </p>
           </div>
         </div>
 
         <div className="space-y-3">
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleSubscribe}
-            className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
+            onClick={startCheckout}
+            disabled={loading}
+            className="w-full py-4 bg-lime text-void font-semibold rounded-lg disabled:opacity-50"
           >
-            Subscribe to Vesper Pro
+            {loading ? 'Redirecting to checkout...' : 'Subscribe to Vesper Pro'}
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleSkip}
+            onClick={() => router.push('/home')}
             className="w-full py-4 bg-paper/10 border border-paper/20 text-paper font-semibold rounded-lg"
           >
             Continue with Free
@@ -99,4 +97,3 @@ export default function PaywallPage() {
     </div>
   );
 }
-

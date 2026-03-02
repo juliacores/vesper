@@ -2,22 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useAppStore } from '@/stores/useAppStore';
+import { useCheckout } from '@/lib/useCheckout';
 
-export default function PaywallPage() {
+export default function OnboardingPaywallPage() {
   const router = useRouter();
-  const { setIsPremium } = useAppStore();
-
-  const handleSubscribe = () => {
-    // TODO: Implement Stripe subscription flow
-    setIsPremium(true);
-    router.push('/onboarding/identity');
-  };
-
-  const handleSkip = () => {
-    setIsPremium(false);
-    router.push('/onboarding/identity');
-  };
+  const { startCheckout, loading, error } = useCheckout();
 
   return (
     <div className="min-h-screen bg-void p-6">
@@ -33,7 +22,7 @@ export default function PaywallPage() {
             </motion.div>
 
             <h1 className="font-serif text-4xl text-paper mb-2">
-              Velvet Pro
+              Vesper Pro
             </h1>
 
             <p className="text-paper/70 text-lg mb-8">
@@ -58,21 +47,30 @@ export default function PaywallPage() {
                 <span className="text-paper">Priority support</span>
               </div>
             </div>
+
+            {error && (
+              <p className="text-blood text-sm">{error}</p>
+            )}
+
+            <p className="text-paper/40 text-xs">
+              Have a promo code? You can apply it at checkout.
+            </p>
           </div>
         </div>
 
         <div className="space-y-3">
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleSubscribe}
-            className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
+            onClick={startCheckout}
+            disabled={loading}
+            className="w-full py-4 bg-lime text-void font-semibold rounded-lg disabled:opacity-50"
           >
-            Subscribe to Velvet Pro
+            {loading ? 'Redirecting to checkout...' : 'Subscribe to Vesper Pro'}
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={handleSkip}
+            onClick={() => router.push('/onboarding/identity')}
             className="w-full py-4 bg-paper/10 border border-paper/20 text-paper font-semibold rounded-lg"
           >
             Continue with Free
@@ -82,4 +80,3 @@ export default function PaywallPage() {
     </div>
   );
 }
-

@@ -39,8 +39,19 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+
   return (
     <html lang="en" className="dark">
+      <head>
+        {plausibleDomain && (
+          <script
+            defer
+            data-domain={plausibleDomain}
+            src="https://plausible.io/js/script.js"
+          />
+        )}
+      </head>
       <body
         className={`${playfair.variable} ${inter.variable} font-sans bg-void text-paper antialiased`}
         style={{ touchAction: 'manipulation' }}

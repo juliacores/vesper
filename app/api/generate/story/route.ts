@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiClient } from '@/lib/supabase/api';
+import { checkAndIncrementFreemium } from '@/lib/freemium';
+import { validateGenerationInput } from '@/lib/validation';
+import { rateLimit } from '@/lib/rateLimit';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -8,7 +11,6 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication using token from Authorization header
     const { supabase, token } = createApiClient(request);
 
     if (!token) {
@@ -23,10 +25,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { persona, vibe, userPreferences } = body;
+    const rateLimited = rateLimit(request, user.id, { maxRequests: 5, windowMs: 60_000 });
+    if (rateLimited) return rateLimited;
 
-    // Build system prompt from user preferences
+    const freemium = await checkAndIncrementFreemium(supabase, user.id);
+    if (!freemium.allowed) {
+      return NextResponse.json(
+        { error: freemium.error, code: 'limit_reached' },
+        { status: 402 }
+      );
+    }
+
+    const body = await request.json();
+    const input = validateGenerationInput(body);
+    if (!input.valid) {
+      return NextResponse.json({ error: input.error }, { status: 400 });
+    }
+    const { persona, vibe, userPreferences } = input;
+
     const systemPrompt = buildSystemPrompt(persona, vibe, userPreferences);
 
     // Generate story using OpenAI

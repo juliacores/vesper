@@ -1,14 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiClient } from '@/lib/supabase/api';
+import { checkAndIncrementFreemium } from '@/lib/freemium';
+import { validateGenerationInput } from '@/lib/validation';
+import { rateLimit } from '@/lib/rateLimit';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const ELEVENLABS_DEFAULT_VOICE = '21m00Tcm4TlvDq8ikWAM';
+const TTS_MAX_CHARS = 5000;
+
+async function generateTTS(text: string, voiceId = ELEVENLABS_DEFAULT_VOICE): Promise<Buffer> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY is not configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          text: text.substring(0, TTS_MAX_CHARS),
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`ElevenLabs API returned ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication using token from Authorization header
     const { supabase, token } = createApiClient(request);
 
     if (!token) {
@@ -23,20 +65,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { persona, vibe, userPreferences } = body;
+    const rateLimited = rateLimit(request, user.id, { maxRequests: 5, windowMs: 60_000 });
+    if (rateLimited) return rateLimited;
 
-    // Build system prompt for guided audio/meditation
+    const freemium = await checkAndIncrementFreemium(supabase, user.id);
+    if (!freemium.allowed) {
+      return NextResponse.json(
+        { error: freemium.error, code: 'limit_reached' },
+        { status: 402 }
+      );
+    }
+
+    const body = await request.json();
+    const input = validateGenerationInput(body);
+    if (!input.valid) {
+      return NextResponse.json({ error: input.error }, { status: 400 });
+    }
+    const { persona, vibe, userPreferences } = input;
+
     const systemPrompt = buildAudioPrompt(persona, vibe, userPreferences);
 
-    // Generate script using OpenAI
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
+        { role: 'system', content: systemPrompt },
         {
           role: 'user',
           content: `Create a guided audio/meditation script with a ${vibe} vibe, featuring ${persona}. Make it immersive and relaxing.`,
@@ -48,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     const scriptText = completion.choices[0]?.message?.content || '';
 
-    // Save session to database first
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .insert({
@@ -63,30 +114,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (sessionError) {
-      return NextResponse.json(
-        { error: 'Failed to save session' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to save session' }, { status: 500 });
     }
 
-    // Generate TTS audio using ElevenLabs — required for audio mode
-    let audioUrl: string | null = null;
-
-    const ttsResponse = await fetch(
-      `${request.nextUrl.origin}/api/elevenlabs/tts`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: scriptText.substring(0, 5000),
-        }),
-      }
-    );
-
-    if (!ttsResponse.ok) {
-      // Clean up the saved session since audio failed
+    let audioBuffer: Buffer;
+    try {
+      audioBuffer = await generateTTS(scriptText);
+    } catch {
       await supabase.from('sessions').delete().eq('id', session.id);
       return NextResponse.json(
         { error: 'Audio generation failed. Please check your ElevenLabs API key and try again.' },
@@ -94,18 +128,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ttsData = await ttsResponse.json();
-
-    if (!ttsData.audio) {
-      await supabase.from('sessions').delete().eq('id', session.id);
-      return NextResponse.json(
-        { error: 'Audio generation returned no audio data.' },
-        { status: 500 }
-      );
-    }
-
-    // Save audio to Supabase Storage
-    const audioBuffer = Buffer.from(ttsData.audio, 'base64');
+    let audioUrl: string;
     const fileName = `${user.id}/${session.id}.mp3`;
 
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -116,8 +139,8 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError || !uploadData) {
-      // Storage upload failed — return audio as base64 data URL fallback
-      audioUrl = `data:audio/mpeg;base64,${ttsData.audio}`;
+      const base64 = audioBuffer.toString('base64');
+      audioUrl = `data:audio/mpeg;base64,${base64}`;
     } else {
       const { data: urlData } = supabase.storage
         .from('audio-sessions')

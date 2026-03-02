@@ -7,8 +7,7 @@ import VoiceChatScreen from '@/components/sessions/VoiceChatScreen';
 
 export default function NewVoiceChatPage() {
   const router = useRouter();
-  const { selectedPersona, currentVibe, isPremium, freeGenerationsUsed, incrementFreeGenerations } =
-    useAppStore();
+  const { selectedPersona, currentVibe } = useAppStore();
   const hasChecked = useRef(false);
 
   useEffect(() => {
@@ -17,18 +16,6 @@ export default function NewVoiceChatPage() {
 
     if (!selectedPersona || !currentVibe) {
       router.push('/home');
-      return;
-    }
-
-    // Check freemium limits
-    if (!isPremium && freeGenerationsUsed >= 3) {
-      router.push('/paywall?reason=generation_limit');
-      return;
-    }
-
-    // Increment free generation counter
-    if (!isPremium) {
-      incrementFreeGenerations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

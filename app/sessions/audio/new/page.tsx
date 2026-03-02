@@ -56,6 +56,10 @@ export default function NewAudioSessionPage() {
 
         if (!response.ok) {
           const errorData = await response.json();
+          if (response.status === 402 || errorData.code === 'limit_reached') {
+            router.push('/paywall?reason=generation_limit');
+            return;
+          }
           throw new Error(errorData.error || 'Failed to generate audio');
         }
 
@@ -63,7 +67,6 @@ export default function NewAudioSessionPage() {
         setSessionId(data.sessionId);
         setAudioUrl(data.audioUrl || null);
 
-        // Increment free generation counter after successful generation
         if (!isPremium) {
           incrementFreeGenerations();
         }

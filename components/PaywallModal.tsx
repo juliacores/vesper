@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAppStore } from '@/stores/useAppStore';
+import { useCheckout } from '@/lib/useCheckout';
 
 interface PaywallModalProps {
   isOpen: boolean;
@@ -11,27 +10,19 @@ interface PaywallModalProps {
 }
 
 export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalProps) {
-  const router = useRouter();
-  const { setIsPremium } = useAppStore();
-
-  const handleSubscribe = () => {
-    // TODO: Implement Stripe subscription flow
-    setIsPremium(true);
-    onClose();
-  };
+  const { startCheckout, loading, error } = useCheckout();
 
   const getMessage = () => {
     if (reason === 'time_limit') {
-      return "You've reached the climax of the free trial. Subscribe to finish the scene.";
+      return "You\u2019ve reached the climax of the free trial. Subscribe to finish the scene.";
     }
-    return "You've used your free generation. Subscribe for unlimited access.";
+    return "You\u2019ve used your free generation. Subscribe for unlimited access.";
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -40,7 +31,6 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
             className="fixed inset-0 bg-void/80 z-50"
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -74,15 +64,24 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
                   <span className="text-paper">Priority support</span>
                 </div>
               </div>
+
+              {error && (
+                <p className="text-blood text-sm text-center">{error}</p>
+              )}
+
+              <p className="text-paper/40 text-xs text-center">
+                Have a promo code? You can apply it at checkout.
+              </p>
             </div>
 
             <div className="space-y-3 mt-6">
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={handleSubscribe}
-                className="w-full py-4 bg-lime text-void font-semibold rounded-lg"
+                onClick={startCheckout}
+                disabled={loading}
+                className="w-full py-4 bg-lime text-void font-semibold rounded-lg disabled:opacity-50"
               >
-                Subscribe to Vesper Pro
+                {loading ? 'Redirecting...' : 'Subscribe to Vesper Pro'}
               </motion.button>
 
               <motion.button
@@ -99,4 +98,3 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
     </AnimatePresence>
   );
 }
-
