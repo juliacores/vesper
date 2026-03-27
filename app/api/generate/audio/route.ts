@@ -5,9 +5,13 @@ import { validateGenerationInput } from '@/lib/validation';
 import { rateLimit } from '@/lib/rateLimit';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  return new OpenAI({ apiKey });
+}
 
 const ELEVENLABS_DEFAULT_VOICE = '21m00Tcm4TlvDq8ikWAM';
 const TTS_MAX_CHARS = 5000;
@@ -85,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = buildAudioPrompt(persona, vibe, userPreferences);
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4',
       messages: [
         { role: 'system', content: systemPrompt },
