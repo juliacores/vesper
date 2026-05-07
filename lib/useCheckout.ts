@@ -7,7 +7,7 @@ export function useCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const startCheckout = async () => {
+  const startCheckout = async (plan: 'yearly' | 'monthly' = 'yearly') => {
     setLoading(true);
     setError(null);
 
@@ -27,6 +27,7 @@ export function useCheckout() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({ plan }),
       });
 
       const data = await response.json();

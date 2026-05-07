@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiClient } from '@/lib/supabase/api';
-import { getStripe, PRICE_ID } from '@/lib/stripe';
+import { getStripe, PRICE_ID_MONTHLY, PRICE_ID_YEARLY } from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!PRICE_ID) {
+    const body = await request.json().catch(() => ({}));
+    const plan = body?.plan === 'monthly' ? 'monthly' : 'yearly';
+    const selectedPriceId = plan === 'monthly' ? PRICE_ID_MONTHLY : PRICE_ID_YEARLY;
+
+    if (!selectedPriceId) {
       return NextResponse.json(
         { error: 'Billing is not configured yet.' },
         { status: 503 }
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
     const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
-      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      line_items: [{ price: selectedPriceId, quantity: 1 }],
       allow_promotion_codes: true,
       success_url: `${origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/paywall?cancelled=true`,

@@ -77,11 +77,20 @@ export default function PaywallModal({ isOpen, onClose, reason }: PaywallModalPr
             <div className="space-y-3 mt-6">
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={startCheckout}
+                onClick={() => startCheckout('yearly')}
                 disabled={loading}
                 className="w-full py-4 bg-lime text-void font-semibold rounded-lg disabled:opacity-50"
               >
-                {loading ? 'Redirecting...' : 'Subscribe to Vesper Pro'}
+                {loading ? 'Redirecting...' : 'Subscribe Yearly (Recommended)'}
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => startCheckout('monthly')}
+                disabled={loading}
+                className="w-full py-4 bg-paper/10 border border-paper/20 text-paper font-semibold rounded-lg disabled:opacity-50"
+              >
+                Subscribe Monthly
               </motion.button>
 
               <motion.button

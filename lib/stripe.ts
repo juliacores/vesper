@@ -16,4 +16,6 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-export const PRICE_ID = process.env.STRIPE_PRICE_ID || '';
+export const PRICE_ID_YEARLY =
+  process.env.STRIPE_PRICE_ID_YEARLY || process.env.STRIPE_PRICE_ID || '';
+export const PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY || '';
